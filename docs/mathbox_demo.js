@@ -66,9 +66,12 @@ var MathBoxDemo = function(settings){
     if (typeof settings === 'string'){
         settings = this.decodeSettings64(settings);
     }
-    this.swizzleOrder = settings.twoDimensional ? "xyz" : "yzx";
+    //this.swizzleOrder = settings.twoDimensional ? "xyz" : "yzx";
+    this.swizzleOrder = "xyz";
     settings = this.sanitizeSettings(settings);
     this.settings = settings;
+    MathBoxDemo.prototype.settings = settings;
+
     this.functions = {};
     this.animatedSliders = [];
     
@@ -82,7 +85,6 @@ var MathBoxDemo = function(settings){
     this.makeGui();
     
     this.appendSaveUrlModal();
-
 }
 
 MathBoxDemo.prototype.sanitizeSettings = function(settings){
@@ -92,16 +94,16 @@ MathBoxDemo.prototype.sanitizeSettings = function(settings){
         zoomEnabled: !settings.twoDimensional,
         twoDimensional:false,
         range: {
-            xMin: settings.twoDimensional ? -10 : -5,
-            xMax: settings.twoDimensional ? +10 : +5,
+            xMin: -5,
+            xMax: +5,
             yMin: -5,
             yMax: +5,
             zMin: -5,
             zMax: +5
         },
-        scale: settings.twoDimensional ? [1,0.5,0.5] : [1, 1, 0.5],
+        scale: settings.twoDimensional ? [1, 0.5, 0.5] : [1, 1, 1],
         camera: {
-            position: settings.twoDimensional ? [0,0,1.5] : [-0.75,-1.5,0.25],
+            position: settings.twoDimensional ? [0, 0, 1.5] : [-0.75, 1, 1],
         },
         grids: {
             xy: true,
@@ -127,12 +129,12 @@ MathBoxDemo.prototype.sanitizeSettings = function(settings){
             tickLabelOffset = [20, 0, 0];
         }
         if (axisId === 'z') {
-            tickLabelOffset = [20,0,0];
+            tickLabelOffset = [20, 0, 0];
         }
         
         var defaultAxisSettings = {
             axisLabel: axisLabel,
-            labelOffset: [0,40,0],
+            labelOffset: [0, 40, 0],
             axis: {width:2, axis: mathboxAxes[axisId]},
             scale: {divide:10, nice:true, zero:false, axis: mathboxAxes[axisId]},
             ticks: {width:2},
@@ -327,7 +329,7 @@ MathBoxDemo.prototype.redrawScene = function(){
 }
 
 MathBoxDemo.prototype.makeGui = function(){
-	this.gui = new dat.GUI();
+	this.gui = new dat.GUI({ autoPlace: true, width: 400 });
     this.gui.add( this, 'displaySavedUrl' ).name("Save Graph");
     
     this.customizeGui(this.gui);
@@ -373,16 +375,17 @@ MathBoxDemo.prototype.customizeGui = function(gui, settings) {
     // To be customized by subclasses of MathBoxDemo
 }
 
-MathBoxDemo.prototype.animateDatGuiSlider = function(slider, toggle, rate){
-
-    rate = defaultVal(rate, 1.0);
+MathBoxDemo.prototype.animateDatGuiSlider = function(slider, toggle, scale){
+    console.log("scale: " + scale);
+    //rate = defaultVal(rate, 1.0);
+    
     var slider = slider
     var property = slider.property;
     var object = slider.object;
     var sliderStep = slider.__step;
-    var timeStep = sliderStep * 1000 / rate;
+    var timeStep = sliderStep * 1000 / scale;
     
-    this.animatedSliders.push({slider:slider,toggle:toggle, beginAnimation: beginAnimation})
+    this.animatedSliders.push({slider: slider, toggle: toggle, beginAnimation: beginAnimation})
     toggle.listen();
     
     if (toggle.object[toggle.property]){
@@ -401,8 +404,10 @@ MathBoxDemo.prototype.animateDatGuiSlider = function(slider, toggle, rate){
             if (!toggle.object[toggle.property]){
                 clearInterval(intervalId);
             }
-            object[property] += sliderStep;
+
+            object[property] += sliderStep * MathBoxDemo.prototype.settings.functions.a.tScale;
             slider.updateDisplay();
+
             // slider onChange function always receives slider value
             slider.__onChange(object[property]);
             if (object[property] > slider.__max) {
@@ -414,10 +419,11 @@ MathBoxDemo.prototype.animateDatGuiSlider = function(slider, toggle, rate){
 }
 
 MathBoxDemo.prototype.toggleAllAnimations = function(){
-    for (var j=0; j<this.animatedSliders.length; j++){
+    for (var j = 0; j < this.animatedSliders.length; j++){
         var toggle = this.animatedSliders[j].toggle;
         var newVal = ! toggle.object[toggle.property];
         toggle.object[toggle.property] = newVal;
+        
         this.animatedSliders[j].beginAnimation();
     }
 }
@@ -525,6 +531,7 @@ MathBoxDemo.prototype.drawParametricCurve = function(funcSettings, parentObject)
     var zJS = this.functions[funcId].zJS;
     var tMin = funcSettings.tMin;
     var tMax = funcSettings.tMax;
+    var tScale = funcSettings.tScale;
     var color = funcSettings.color;
     var samples = funcSettings.samples;
     
@@ -543,7 +550,7 @@ MathBoxDemo.prototype.drawParametricCurve = function(funcSettings, parentObject)
       order: this.swizzleOrder
     }).line({
       color: color,
-      width: 6,
+      width: 4,
     });
     
 }
@@ -714,21 +721,23 @@ Demo_ParametricCurves.prototype.sanitizeSettings = function(settings) {
         t: 0.1,
         tMin: -1,
         tMax: +3,
+        tScale: 0.25,
     }
     var moreDefaultSettings = {
         functions: {
             a: _.merge({}, defaultFunctionSettings, {
                 id: 'a',
                 color: '#3090FF',
-                x:'3*cos(t)',
-                y:'3*sin(t)',
-                z: settings.twoDimensional ? '0' : 't/3.14',
+                x:'3 * cos(t * 6.28)',
+                y: settings.twoDimensional ? '0' : 't / 3.14',
+                z:'3 * sin(t * 6.28)',
                 animate:true,
                 samples:64,
                 displayEquation:true,
                 t: 0.1,
                 tMin: 0,
-                tMax: +6.28,   
+                tMax: 1,
+                tScale: 0.25,
             }),
             b: _.merge({}, defaultFunctionSettings, {id:'b',color: 'orange'}),
             c: _.merge({}, defaultFunctionSettings, {id:'c',color: '#2db92d'}),
@@ -753,13 +762,13 @@ Demo_ParametricCurves.prototype.drawVis = function(funcSettings){
     var y = func.yJS(t);
     var z = func.zJS(t);
     var dt = 0.001;
-    var dx = func.xJS(t+dt)-func.xJS(t);
-    var dy = func.yJS(t+dt)-func.yJS(t);
-    var dz = func.zJS(t+dt)-func.zJS(t);
+    var dx = func.xJS(t + dt) - func.xJS(t);
+    var dy = func.yJS(t + dt) - func.yJS(t);
+    var dz = func.zJS(t + dt) - func.zJS(t);
     var velocityScale = funcSettings.velocityScale;
-    var vx = velocityScale*dx/dt;
-    var vy = velocityScale*dy/dt;
-    var vz = velocityScale*dz/dt;
+    var vx = velocityScale * dx / dt;
+    var vy = velocityScale * dy / dt;
+    var vz = velocityScale * dz / dt;
     
     var pointSettings = {
         id:funcSettings.id,
@@ -791,7 +800,6 @@ Demo_ParametricCurves.prototype.drawVis = function(funcSettings){
 }
 
 Demo_ParametricCurves.prototype.updateVis_t = function(funcSettings) {
-
     var t = funcSettings.t;
     var func = this.functions[funcSettings.id];
     if (func===undefined){return}
@@ -799,13 +807,13 @@ Demo_ParametricCurves.prototype.updateVis_t = function(funcSettings) {
     var y = func.yJS(t);
     var z = func.zJS(t);
     var dt = 0.001;
-    var dx = func.xJS(t+dt)-func.xJS(t);
-    var dy = func.yJS(t+dt)-func.yJS(t);
-    var dz = func.zJS(t+dt)-func.zJS(t);
+    var dx = func.xJS(t+dt) - func.xJS(t);
+    var dy = func.yJS(t+dt) - func.yJS(t);
+    var dz = func.zJS(t+dt) - func.zJS(t);
     var velocityScale = funcSettings.velocityScale;
-    var vx = velocityScale*dx/dt;
-    var vy = velocityScale*dy/dt;
-    var vz = velocityScale*dz/dt;
+    var vx = velocityScale * dx / dt;
+    var vy = velocityScale * dy / dt;
+    var vz = velocityScale * dz / dt;
     
     var pointSettings = {
         id:funcSettings.id,
@@ -885,8 +893,6 @@ Demo_ParametricCurves.prototype.customizeGui = function(gui){
             
         var animateToggle = funcFolder.add(functionSettings, 'animate').name("Animate");
         
-        this.animateDatGuiSlider(tSlider, animateToggle);
-        
         funcFolder.add(functionSettings, 'tMin').onChange( function(){
             this.updateVis_tRange(funcId);
             tSlider.min( functionSettings.tMin );
@@ -895,6 +901,20 @@ Demo_ParametricCurves.prototype.customizeGui = function(gui){
             this.updateVis_tRange(funcId);
             tSlider.max( functionSettings.tMax );
         }.bind(this) );
+
+        var tScaler = funcFolder.add(functionSettings, 'tScale')
+            .min(0)
+            .max(5);
+            tScaler.onChange(function(){
+                this.updateVis_t(functionSettings);
+                //this.toggleAllAnimations();
+                //this.animatedSliders[0].beginAnimation();
+                //this.toggleAllAnimations();
+                //this.animatedSliders[0].beginAnimation();
+            }.bind(this));
+            
+        this.animateDatGuiSlider(tSlider, animateToggle, functionSettings.tScale);
+
         funcFolder.add(functionSettings, 'samples');
         
         var moreFolder = funcFolder.addFolder("More Settings");
@@ -986,7 +1006,7 @@ Demo_ParametricSurfaces.prototype.sanitizeSettings = function(settings) {
                 animate:true,
                 samples:64,
                 uMin:0,
-                uMax:2*3.14,
+                uMax:2 * 3.14,
                 vMin:-3,
                 vMax:+3,
             }),
@@ -1018,8 +1038,8 @@ Demo_ParametricSurfaces.prototype.customizeGui = function(gui){
         var funcFolder = folder0.addFolder(folderName);
         if (openFolder){ funcFolder.open(); }
         
-        var xGUI =funcFolder.add(functionSettings, 'x').name("<span class='equation-LHS'>X(u,v) = </span>");
-        var yGUI =funcFolder.add(functionSettings, 'y').name("<span class='equation-LHS'>Y(u,v) = </span>");
+        var xGUI = funcFolder.add(functionSettings, 'x').name("<span class='equation-LHS'>X(u,v) = </span>");
+        var yGUI = funcFolder.add(functionSettings, 'y').name("<span class='equation-LHS'>Y(u,v) = </span>");
         var zGUI = funcFolder.add(functionSettings, 'z').name("<span class='equation-LHS'>Z(u,v) = </span>");
             
         funcFolder.add(functionSettings, 'uMin');
